@@ -294,10 +294,12 @@ export default function GlobalAccountSearch() {
     executeSearch();
   };
 
-  // Perform multi-variant client-side filtration based on live dropdown options
   const filteredResults = results.filter(acc => {
     const itemRole = acc.role ? String(acc.role).toLowerCase() : '';
-    const itemStatus = acc.account_status ? String(acc.account_status).toLowerCase() : 'unverified';
+    let itemStatus = acc.account_status ? String(acc.account_status).toLowerCase() : 'unverified';
+    
+    // Normalize backend status 'holded' to 'hold' for clean UI filtering compatibility
+    if (itemStatus === 'holded') itemStatus = 'hold';
 
     const typeMatch = selectedType === 'All' || 
       itemRole === selectedType.toLowerCase() || 
@@ -332,7 +334,7 @@ export default function GlobalAccountSearch() {
       }
 
       setAlert({ type: 'success', message: `Successfully updated workspace state parameter for: ${name}.` });
-      executeSearch(); // Synchronize view downstream
+      executeSearch(); 
     } catch (err) {
       setAlert({ type: 'error', message: err.message || 'Target state override execution failure.' });
     } finally {
@@ -347,7 +349,6 @@ export default function GlobalAccountSearch() {
         <p className="text-sm text-slate-500">Manage and monitor all hospital user accounts across the global system.</p>
       </div>
 
-      {/* Dynamic Filtering Frame Toolbar */}
       <form onSubmit={handleSearchSubmit} className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div className="md:col-span-2">
           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Accounts</label>
@@ -392,7 +393,7 @@ export default function GlobalAccountSearch() {
         </div>
 
         <div className="md:col-span-4 flex justify-end">
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-lg shadow-md shadow-blue-600/10 transition-colors">
+          <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-lg shadow-md transition-colors">
             Search
           </button>
         </div>
@@ -400,7 +401,6 @@ export default function GlobalAccountSearch() {
 
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 
-      {/* Directory Data Grid Workspace */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
         {loading ? (
           <Loader />
@@ -438,32 +438,33 @@ export default function GlobalAccountSearch() {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           currentStatus === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                          currentStatus === 'hold' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
+                          (currentStatus === 'hold' || currentStatus === 'holded') ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             currentStatus === 'active' ? 'bg-emerald-500' :
-                            currentStatus === 'hold' ? 'bg-amber-500' : 'bg-slate-400'
+                            (currentStatus === 'hold' || currentStatus === 'holded') ? 'bg-amber-500' : 'bg-slate-400'
                           }`}></span>
-                          {currentStatus === 'active' ? 'Active' : currentStatus === 'hold' ? 'Held' : 'Unverified'}
+                          {currentStatus === 'active' ? 'Active' : (currentStatus === 'hold' || currentStatus === 'holded') ? 'Held' : 'Unverified'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
+                        {/* Fixed Status Check Loop handling both 'hold' and 'holded' strings perfectly */}
                         {currentStatus === 'active' && (
                           <>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('hold', acc.id, labelName, acc.role)} className="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Hold</button>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('delete', acc.id, labelName, acc.role)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Delete</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('hold', acc.id, labelName, acc.role)} className="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded font-bold transition-colors">Hold</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('delete', acc.id, labelName, acc.role)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs px-3 py-1.5 rounded font-bold transition-colors">Delete</button>
                           </>
                         )}
                         {currentStatus === 'unverified' && (
                           <>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('approve', acc.id, labelName, acc.role)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Approve</button>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('hold', acc.id, labelName, acc.role)} className="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Hold</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('approve', acc.id, labelName, acc.role)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded font-bold transition-colors">Approve</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('hold', acc.id, labelName, acc.role)} className="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded font-bold transition-colors">Hold</button>
                           </>
                         )}
-                        {currentStatus === 'hold' && (
+                        {(currentStatus === 'hold' || currentStatus === 'holded') && (
                           <>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('resume', acc.id, labelName, acc.role)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Resume</button>
-                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('delete', acc.id, labelName, acc.role)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs px-3 py-1.5 rounded font-bold transition-colors disabled:opacity-50">Delete</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('resume', acc.id, labelName, acc.role)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold transition-colors">Resume</button>
+                            <button disabled={actioningId !== null} onClick={() => handleStateMutation('delete', acc.id, labelName, acc.role)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs px-3 py-1.5 rounded font-bold transition-colors">Delete</button>
                           </>
                         )}
                       </td>
@@ -475,7 +476,6 @@ export default function GlobalAccountSearch() {
           </div>
         )}
       </div>
-      <div className="text-center text-xs text-slate-400 font-medium">🛡️ Secure Enterprise Connection Active</div>
     </div>
   );
 }
