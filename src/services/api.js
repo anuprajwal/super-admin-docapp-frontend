@@ -105,5 +105,10 @@ export const superAdminEndpoints = {
   holdAccount: (id) => 
     makeFetchRequest(`/admin/hold-account/${id}`, {
       method: 'PUT'
+    }),
+
+  resumeAccount: (id) => 
+    makeFetchRequest('/admin/resume-account/' + id, { 
+      method: 'PUT' 
     })
 };
