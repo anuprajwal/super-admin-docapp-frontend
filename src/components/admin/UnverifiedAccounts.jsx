@@ -23,7 +23,7 @@ export default function UnverifiedAccounts() {
         const orgs = data.unverified_organisations || [];
         
         const mappedDocs = doctors.map(d => ({ ...d, computedType: 'Doctor', targetId: d.user_id }));
-        const mappedOrgs = orgs.map(o => ({ ...o, computedType: 'Hospital', targetId: o.id}));
+        const mappedOrgs = orgs.map(o => ({ ...o, computedType: 'Hospital', targetId: o.user.id }));
         mergedList = [...mappedDocs, ...mappedOrgs];
       } else {
         const response = await superAdminEndpoints.getUnverifiedAccounts();
@@ -32,7 +32,7 @@ export default function UnverifiedAccounts() {
         const orgs = data.unverified_organisations || [];
         
         const mappedDocs = doctors.map(d => ({ ...d, computedType: 'Doctor', targetId: d.user_id }));
-        const mappedOrgs = orgs.map(o => ({ ...o, computedType: 'Hospital', targetId: o.id }));
+        const mappedOrgs = orgs.map(o => ({ ...o, computedType: 'Hospital', targetId: o.user.id }));
         mergedList = [...mappedDocs, ...mappedOrgs];
       }
       setAccounts(mergedList);
