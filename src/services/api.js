@@ -1,6 +1,19 @@
 const REMOTE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
+ * Utility to clear auth cookies and session keys on expiry or unauthorized responses
+ */
+export const clearAuthSession = () => {
+  // Clear cookie targeting the production domain
+  document.cookie = "auth_token=; path=/; domain=.docapp.co.in; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  // Clear root cookie fallback (for local development)
+  document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('admin_current_view');
+};
+
+/**
  * Robust utility to parse and extract the token out of the document cookie stack.
  * Incorporates a localStorage fallback loop to support unblocked testing on localhost.
  */
@@ -42,6 +55,14 @@ const makeFetchRequest = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
     
+    // Handle Unauthorized / Expired sessions
+    if (response.status === 401 || response.status === 403) {
+      clearAuthSession();
+      // Reload window to trigger the login screen view
+      window.location.reload();
+      return;
+    }
+
     let responseData = null;
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
