@@ -3,12 +3,14 @@ import { superAdminEndpoints } from '../../services/api';
 import { logAdminActivity } from '../../utils/auditLogger';
 import Alert from '../ui/Alert';
 import Loader from '../ui/Loader';
+import AccountDetails from './AccountDetails';
 
 export default function GlobalAccountSearch() {
   const [query, setQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [results, setResults] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actioningId, setActioningId] = useState(null);
   const [alert, setAlert] = useState({ type: '', message: '' });
@@ -20,7 +22,7 @@ export default function GlobalAccountSearch() {
       const response = await superAdminEndpoints.searchAccounts(query);
       setResults(response.data?.accounts || []);
     } catch (err) {
-      setAlert({ type: 'error', message: err.message || 'Failed to populate core platform directories search map.' });
+      setAlert({ type: 'error', message: err.message || 'Failed to populate accounts directory.' });
     } finally {
       setLoading(false);
     }
@@ -35,30 +37,16 @@ export default function GlobalAccountSearch() {
     executeSearch();
   };
 
-  // Perform client-side filtration using exact database enum configurations
   const filteredResults = results.filter(acc => {
     const itemRole = acc.role ? String(acc.role).toLowerCase() : '';
     const rawStatus = acc.account_status ? String(acc.account_status).toLowerCase() : '';
 
-    // Step 1: Clean status mapping based on role differences
     let computedStatus = 'unverified'; 
-    
-    if (rawStatus === 'active') {
-      computedStatus = 'active';
-    } else if (rawStatus === 'holded' || rawStatus === 'hold') {
-      computedStatus = 'hold';
-    } else if (rawStatus === 'deleted') {
-      computedStatus = 'deleted';
-    } else {
-      // If it has no explicit enum status field, check role context
-      if (itemRole === 'general_user') {
-        computedStatus = 'active'; // Normal users don't have onboarding verification stages
-      } else {
-        computedStatus = 'unverified'; // Doctors/Hospitals default to unverified if blank
-      }
-    }
+    if (rawStatus === 'active') computedStatus = 'active';
+    else if (rawStatus === 'holded' || rawStatus === 'hold') computedStatus = 'hold';
+    else if (rawStatus === 'deleted') computedStatus = 'deleted';
+    else if (itemRole === 'general_user') computedStatus = 'active';
 
-    // Step 2: Evaluate matching drop-down filters
     const typeMatch = selectedType === 'All' || 
       itemRole === selectedType.toLowerCase() || 
       (selectedType === 'Patient' && itemRole === 'general_user');
@@ -86,25 +74,40 @@ export default function GlobalAccountSearch() {
         await superAdminEndpoints.resumeAccount(id);
         logAdminActivity('Account Hold Resumed', name, role, 'Active');
       } else if (actionType === 'delete') {
-        if (!window.confirm(`Permanently drop database access flags for ${name}?`)) return;
+        if (!window.confirm(`Permanently delete access flags for ${name}?`)) return;
         await superAdminEndpoints.deleteAccount(id);
         logAdminActivity('Account Deleted Permanently', name, role, 'Deleted');
       }
 
-      setAlert({ type: 'success', message: `Successfully updated workspace state parameter for: ${name}.` });
+      setAlert({ type: 'success', message: `Successfully updated state for ${name}.` });
+      setSelectedAccount(null);
       executeSearch(); 
     } catch (err) {
-      setAlert({ type: 'error', message: err.message || 'Target state override execution failure.' });
+      setAlert({ type: 'error', message: err.message || 'Action failed.' });
     } finally {
       setActioningId(null);
     }
   };
 
+  if (selectedAccount) {
+    return (
+      <AccountDetails
+        account={selectedAccount}
+        onBack={() => setSelectedAccount(null)}
+        onApprove={(id, name, role) => handleStateMutation('approve', id, name, role)}
+        onHold={(id, name, role) => handleStateMutation('hold', id, name, role)}
+        onResume={(id, name, role) => handleStateMutation('resume', id, name, role)}
+        onDelete={(id, name, role) => handleStateMutation('delete', id, name, role)}
+        isActioning={actioningId !== null}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Global Account Search</h1>
-        <p className="text-sm text-slate-500">Manage and monitor all hospital user accounts across the global system.</p>
+        <p className="text-sm text-slate-500">Manage and monitor all accounts across the platform.</p>
       </div>
 
       <form onSubmit={handleSearchSubmit} className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -145,9 +148,9 @@ export default function GlobalAccountSearch() {
           >
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
-            <option value="Unverified">Unverified (Staff Only)</option>
+            <option value="Unverified">Unverified</option>
             <option value="Hold">Hold</option>
-            <option value="Deleted">Deleted</option> {/* Added functional filter dropdown option */}
+            <option value="Deleted">Deleted</option>
           </select>
         </div>
 
@@ -165,7 +168,7 @@ export default function GlobalAccountSearch() {
           <Loader />
         ) : filteredResults.length === 0 ? (
           <div className="p-12 text-center text-slate-400 font-medium text-sm">
-            🔍 No configuration rows match active query boundaries.
+            🔍 No accounts match the current query filters.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -173,7 +176,7 @@ export default function GlobalAccountSearch() {
               <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
                 <tr>
                   <th className="px-6 py-3.5">Name</th>
-                  <th className="px-6 py-3.5">Email context</th>
+                  <th className="px-6 py-3.5">Email Context</th>
                   <th className="px-6 py-3.5">Role</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
@@ -184,7 +187,6 @@ export default function GlobalAccountSearch() {
                   const itemRole = acc.role ? String(acc.role).toLowerCase() : '';
                   const rawStatus = acc.account_status ? String(acc.account_status).toLowerCase() : '';
                   
-                  // Compute dynamic display parameters matching rules
                   let displayStatus = 'unverified';
                   if (rawStatus === 'active') displayStatus = 'active';
                   else if (rawStatus === 'holded' || rawStatus === 'hold') displayStatus = 'hold';
@@ -195,8 +197,12 @@ export default function GlobalAccountSearch() {
                   const labelRole = acc.role === 'general_user' ? 'PATIENT' : String(acc.role).toUpperCase();
 
                   return (
-                    <tr key={acc.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-slate-900 font-bold">{labelName}</td>
+                    <tr 
+                      key={acc.id} 
+                      onClick={() => setSelectedAccount({ ...acc, computedStatus: displayStatus })}
+                      className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4 text-blue-600 hover:underline font-bold">{labelName}</td>
                       <td className="px-6 py-4 text-slate-500">{acc.email || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 text-slate-600 tracking-wider">
@@ -214,11 +220,10 @@ export default function GlobalAccountSearch() {
                             displayStatus === 'hold' ? 'bg-amber-500' : 
                             displayStatus === 'deleted' ? 'bg-rose-500' : 'bg-slate-400'
                           }`}></span>
-                          {displayStatus === 'active' ? 'Active' : displayStatus === 'hold' ? 'Held' : displayStatus === 'deleted' ? 'Deleted' : 'Unverified'}
+                          {displayStatus.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2 h-[53px]">
-                        {/* Render live actionable elements depending entirely on active status flags */}
+                      <td className="px-6 py-4 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                         {displayStatus === 'active' && (
                           <>
                             <button disabled={actioningId !== null} onClick={() => handleStateMutation('hold', acc.id, labelName, acc.role)} className="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded font-bold transition-colors">Hold</button>
@@ -238,7 +243,6 @@ export default function GlobalAccountSearch() {
                           </>
                         )}
                         {displayStatus === 'deleted' && (
-                          // Rule 1 mandate: Hidden layout configuration for deleted rows.
                           <span className="text-xs text-slate-400 italic font-medium pr-2">No actions available</span>
                         )}
                       </td>
