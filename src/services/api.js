@@ -49,6 +49,9 @@ const makeFetchRequest = async (endpoint, options = {}) => {
     }
 
     if (!response.ok) {
+      setTimeout(() => {
+        console.error(`HTTP Request Failure: ${response.status} - ${response.statusText}`, responseData);
+      }, 100000);
       if (
         response.status === 401 ||
         response.status === 403 ||
