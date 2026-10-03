@@ -22,13 +22,14 @@ export default function SuperAdminAuth({ onAuthSuccess }) {
 
     try {
       const response = await superAdminEndpoints.login({ email, password });
-      const { token } = response.data; 
+      if (response.ok) {
+        setAlert({ type: 'success', message: 'Authentication successful. Redirecting...' });
+        
 
-      // Inject authorization parameters into the document cookie stack 
-      const cookieExpiry = rememberMe ? "; max-age=2592000" : ""; // 30 days
-      document.cookie = `auth_token=${encodeURIComponent(token)}${cookieExpiry}; path=/; domain=.docapp.co.in; secure; samesite=lax`;
-
-      onAuthSuccess();
+        onAuthSuccess();
+      } else {
+        setAlert({ type: 'error', message: response.data?.message || 'Authentication failed. Please check your credentials.' });
+      }
     } catch (err) {
       setAlert({ 
         type: 'error', 
