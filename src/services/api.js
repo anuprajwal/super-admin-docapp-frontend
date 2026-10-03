@@ -33,6 +33,7 @@ const makeFetchRequest = async (endpoint, options = {}) => {
   const config = {
     ...options,
     headers,
+    credentials: 'include', 
   };
 
   if (options.body && typeof options.body === 'object') {
