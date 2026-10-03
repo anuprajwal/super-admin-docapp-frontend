@@ -22,14 +22,7 @@ export default function SuperAdminAuth({ onAuthSuccess }) {
 
     try {
       const response = await superAdminEndpoints.login({ email, password });
-      if (response.ok) {
-        setAlert({ type: 'success', message: 'Authentication successful. Redirecting...' });
-        
-
-        onAuthSuccess();
-      } else {
-        setAlert({ type: 'error', message: response.data?.message || 'Authentication failed. Please check your credentials.' });
-      }
+      onAuthSuccess(response.data);
     } catch (err) {
       setAlert({ 
         type: 'error', 
