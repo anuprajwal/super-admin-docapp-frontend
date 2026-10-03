@@ -49,17 +49,17 @@ const makeFetchRequest = async (endpoint, options = {}) => {
     }
 
     if (!response.ok) {
-      await setTimeout(() => {
-        console.error(`HTTP Request Failure: ${response.status} - ${response.statusText}`, responseData);
-      }, 100000);
+      
       if (
         response.status === 401 ||
         response.status === 403 ||
         (responseData && responseData.error === 'jwt expired')
       ) {
-        clearAuthSession();
-        window.location.reload();
-        return;
+
+        // clearAuthSession();
+        // window.location.reload();
+        // return;
+        console.warn('Authentication token expired or unauthorized access. Please log in again.');
       }
 
       const errorContext = new Error(responseData?.message || `HTTP Request Failure Status: ${response.status}`);
